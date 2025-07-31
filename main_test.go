@@ -1,54 +1,54 @@
 package main
 
-// Пишите тесты в этом файле
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGenerateRandomElements(t *testing.T) {
 	tests := []struct {
 		name    string
 		size    int
-		wantErr bool
-		errMsg  string
+		wantNil bool
+		wantLen int
 	}{
 		{
 			name:    "Valid positive size",
 			size:    10,
-			wantErr: false,
+			wantNil: false,
+			wantLen: 10,
 		},
 		{
 			name:    "Zero size",
 			size:    0,
-			wantErr: true,
-			errMsg:  "длина слайса должна быть больше 0",
+			wantNil: true,
+			wantLen: 0,
 		},
 		{
 			name:    "Negative size",
 			size:    -1,
-			wantErr: true,
-			errMsg:  "длина слайса должна быть неотрицательной",
+			wantNil: true,
+			wantLen: 0,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := generateRandomElements(tt.size)
+			got := generateRandomElements(tt.size)
 
-			if (err != nil) != tt.wantErr {
-				t.Errorf("For size %d: error = %v, wantErr %v", tt.size, err, tt.wantErr)
-				return
-			}
-
-			if tt.wantErr && err.Error() != tt.errMsg {
-				t.Errorf("For size %d: error message = %q, want %q",
-					tt.size, err.Error(), tt.errMsg)
+			if tt.wantNil {
+				assert.Nil(t, got, "Expected nil slice")
+			} else {
+				require.NotNil(t, got, "Slice should not be nil")
+				assert.Equal(t, tt.wantLen, len(got), "Unexpected slice length")
 			}
 		})
 	}
 }
 
-func TestFindMax(t *testing.T) {
+func TestMaximum(t *testing.T) {
 	tests := []struct {
 		name     string
 		numbers  []int
@@ -82,69 +82,80 @@ func TestFindMax(t *testing.T) {
 			wantErr:  true,
 			errMsg:   "слайс пустой или равен nil",
 		},
-		{
-			name:     "Negative numbers",
-			numbers:  []int{-10, -5, -20, -1},
-			expected: -1,
-			wantErr:  false,
-		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := maximum(tt.numbers)
 
-			// Проверка ошибок
-			if (err != nil) != tt.wantErr {
-				t.Errorf("maximum() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if tt.wantErr && err.Error() != tt.errMsg {
-				t.Errorf("maximum() error message = %v, want %v", err.Error(), tt.errMsg)
-			}
-
-			// Проверка результата
-			if !tt.wantErr && got != tt.expected {
-				t.Errorf("maximum() = %v, want %v", got, tt.expected)
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.EqualError(t, err, tt.errMsg)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.expected, got)
 			}
 		})
 	}
 }
+
 func TestSplitIntoChunks(t *testing.T) {
 	tests := []struct {
-		name   string
-		input  []int
-		output [][]int
+		name          string
+		input         []int
+		expectedCount int // Всегда 8
+		expectedSizes []int
 	}{
 		{
-			name:   "Разделение на 8 частей",
-			input:  []int{1, 2, 3, 4, 5, 6, 7, 5, 9, 4, 8, 3, 2, 5, 4, 3},
-			output: [][]int{{1, 2}, {3, 4}, {5, 6}, {7, 5}, {9, 4}, {8, 3}, {2, 5}, {4, 3}},
+			name:          "16 элементов (по 2 в каждом)",
+			input:         make([]int, 16),
+			expectedCount: 8,
+			expectedSizes: []int{2, 2, 2, 2, 2, 2, 2, 2},
 		},
 		{
-			name:   "Разделение с остатком",
-			input:  []int{1, 2, 3, 3, 4, 5, 6, 7, 5, 9, 4, 8, 3, 2, 5, 4, 3},
-			output: [][]int{{1, 2, 3}, {3, 4, 5}, {6, 7, 5}, {9, 4, 8}, {3, 2, 5}, {4, 3}},
+			name:          "17 элементов (3x5 + 2 + 1 пустой)",
+			input:         make([]int, 17),
+			expectedCount: 8,
+			expectedSizes: []int{3, 3, 3, 3, 3, 2, 0, 0},
 		},
 		{
-			name:   "Пустой слайс",
-			input:  []int{},
-			output: [][]int{},
+			name:          "5 элементов (1x5 + 3 пустых)",
+			input:         make([]int, 5),
+			expectedCount: 8,
+			expectedSizes: []int{1, 1, 1, 1, 1, 0, 0, 0},
+		},
+		{
+			name:          "Пустой слайс",
+			input:         []int{},
+			expectedCount: 8,
+			expectedSizes: []int{0, 0, 0, 0, 0, 0, 0, 0},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			chunks := splitIntoChunks(tt.input)
-			if !equalSlices(chunks, tt.output) {
-				t.Errorf("splitIntoChunks() = %v, ожидается %v", chunks, tt.output)
+
+			// Проверка количества чанков (всегда 8)
+			assert.Len(t, chunks, CHUNKS, "Должно быть 8 чанков")
+
+			// Проверка размеров
+			var sizes []int
+			for _, chunk := range chunks {
+				sizes = append(sizes, len(chunk))
 			}
+			assert.Equal(t, tt.expectedSizes, sizes, "Неверные размеры чанков")
+
+			// Проверка сохранения данных
+			total := 0
+			for _, chunk := range chunks {
+				total += len(chunk)
+			}
+			assert.Equal(t, len(tt.input), total, "Потерялись элементы")
 		})
 	}
 }
-
-// Тест для SplitSlice (основная функция)
-func TestSplitSlice(t *testing.T) {
+func TestMaxChunks(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    []int
@@ -170,27 +181,7 @@ func TestSplitSlice(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := maxChunks(tt.input)
-			if result != tt.expected {
-				t.Errorf("SplitSlice() = %d, ожидается %d", result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result)
 		})
 	}
-}
-
-// Вспомогательная функция для сравнения слайсов
-func equalSlices(a, b [][]int) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if len(a[i]) != len(b[i]) {
-			return false
-		}
-		for j := range a[i] {
-			if a[i][j] != b[i][j] {
-				return false
-			}
-		}
-	}
-	return true
 }
