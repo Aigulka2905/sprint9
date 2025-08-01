@@ -13,13 +13,9 @@ const (
 )
 
 func generateRandomElements(size int) []int {
-	if size < 0 {
+	if size <= 0 {
 		return nil
 	}
-	if size == 0 {
-		return nil
-	}
-
 	numbers := make([]int, size)
 	for i := 0; i < size; i++ {
 		numbers[i] = rand.Int()
@@ -27,10 +23,9 @@ func generateRandomElements(size int) []int {
 	return numbers
 }
 
-func maximum(data []int) (int, error) {
-	// ваш код здесь
+func maximum(data []int) int {
 	if len(data) == 0 {
-		return 0, fmt.Errorf("слайс пустой или равен nil")
+		return 0
 	}
 
 	max := data[0]
@@ -39,12 +34,11 @@ func maximum(data []int) (int, error) {
 			max = num
 		}
 	}
-	return max, nil
+	return max
 }
 
 func splitIntoChunks(data []int) [][]int {
-	chunks := make([][]int, CHUNKS) // Всегда создаем 8 чанков
-
+	chunks := make([][]int, CHUNKS)
 	chunkSize := (len(data) + CHUNKS - 1) / CHUNKS
 
 	for i := 0; i < CHUNKS; i++ {
@@ -72,40 +66,43 @@ func maxChunks(data []int) int {
 	}
 
 	var wg sync.WaitGroup
-	var mutex sync.Mutex
-	maxResult := 0
-	chunkSize := (len(data) + CHUNKS - 1) / CHUNKS
+	maxResults := make([]int, CHUNKS)
+	used := make([]bool, CHUNKS)
 
-	for i := 0; i < CHUNKS; i++ {
-		start := i * chunkSize
-		if start >= len(data) {
-			break
-		}
+	chunks := splitIntoChunks(data)
 
-		end := start + chunkSize
-		if end > len(data) {
-			end = len(data)
-		}
-
+	for i, chunk := range chunks {
 		wg.Add(1)
-		go func(chunk []int) {
+		go func(chunk []int, index int) {
 			defer wg.Done()
 
-			currentMax, err := maximum(chunk)
-			if err != nil {
+			if len(chunk) == 0 {
 				return
 			}
 
-			mutex.Lock()
-			if currentMax > maxResult {
-				maxResult = currentMax
-			}
-			mutex.Unlock()
-		}(data[start:end])
+			currentMax := maximum(chunk)
+			maxResults[index] = currentMax
+			used[index] = true
+		}(chunk, i)
 	}
 
 	wg.Wait()
-	return maxResult
+
+	globalMax := 0
+	hasValidResult := false
+	for i, max := range maxResults {
+		if used[i] {
+			if !hasValidResult || max > globalMax {
+				globalMax = max
+				hasValidResult = true
+			}
+		}
+	}
+
+	if !hasValidResult {
+		return 0
+	}
+	return globalMax
 }
 
 func main() {
@@ -119,11 +116,8 @@ func main() {
 	fmt.Println("Ищем максимальное значение в один поток")
 	// ваш код здесь
 	start := time.Now()
-	oneStreamMax, err := maximum(generateSlice)
-	if err != nil {
-		fmt.Printf("Ошибка поиска максимума: %v\n", err)
-		return
-	}
+	oneStreamMax := maximum(generateSlice)
+
 	elapsed := time.Since(start).Microseconds()
 	fmt.Printf("Максимальное значение элемента: %d\nВремя поиска: %d ms\n", oneStreamMax, elapsed)
 

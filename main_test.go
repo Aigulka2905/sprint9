@@ -53,48 +53,33 @@ func TestMaximum(t *testing.T) {
 		name     string
 		numbers  []int
 		expected int
-		wantErr  bool
-		errMsg   string
 	}{
 		{
 			name:     "Valid case: multiple elements",
 			numbers:  []int{81, 87, 47, 59, 81},
 			expected: 87,
-			wantErr:  false,
 		},
 		{
 			name:     "Valid case: single element",
 			numbers:  []int{42},
 			expected: 42,
-			wantErr:  false,
 		},
 		{
 			name:     "Empty slice",
 			numbers:  []int{},
 			expected: 0,
-			wantErr:  true,
-			errMsg:   "слайс пустой или равен nil",
 		},
 		{
 			name:     "Nil slice",
 			numbers:  nil,
 			expected: 0,
-			wantErr:  true,
-			errMsg:   "слайс пустой или равен nil",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := maximum(tt.numbers)
-
-			if tt.wantErr {
-				require.Error(t, err)
-				assert.EqualError(t, err, tt.errMsg)
-			} else {
-				require.NoError(t, err)
-				assert.Equal(t, tt.expected, got)
-			}
+			got := maximum(tt.numbers)
+			assert.Equal(t, tt.expected, got)
 		})
 	}
 }
